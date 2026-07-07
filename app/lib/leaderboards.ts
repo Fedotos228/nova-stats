@@ -4,12 +4,12 @@ const PUBLISHED_SHEET_BASE =
 export type LeaderboardRow = {
   rank: number
   name: string
-  values: string[]
+  value: string
+  raw: number
 }
 
 export type Leaderboard = {
   title: string
-  columns: string[]
   rows: LeaderboardRow[]
 }
 
@@ -77,20 +77,16 @@ function formatRpm(raw: string) {
 // Reads a fixed-position ranked table out of the sheet until the rank column goes blank.
 function readTable(
   rows: string[][],
-  { rankCol, nameCol, cellCols }: { rankCol: number; nameCol: number; cellCols: number[] },
-): LeaderboardRow[] {
-  const out: LeaderboardRow[] = []
+  { rankCol, nameCol, valueCol }: { rankCol: number; nameCol: number; valueCol: number },
+): { rank: number; name: string; raw: string }[] {
+  const out: { rank: number; name: string; raw: string }[] = []
 
   for (const row of rows) {
     const rank = Number(row[rankCol])
     const name = row[nameCol]?.trim()
     if (!rank || !name) continue
 
-    out.push({
-      rank,
-      name,
-      values: cellCols.map((col) => row[col]?.trim() ?? ""),
-    })
+    out.push({ rank, name, raw: row[valueCol]?.trim() ?? "" })
   }
 
   return out
@@ -98,49 +94,41 @@ function readTable(
 
 async function getRpmLeaderboard(): Promise<Leaderboard> {
   const rows = await fetchSheetRows("48417670")
-  const entries = readTable(rows, { rankCol: 1, nameCol: 2, cellCols: [3, 4, 5, 6] })
+  const entries = readTable(rows, { rankCol: 1, nameCol: 2, valueCol: 6 })
 
   return {
     title: "Top RPM",
-    columns: ["Loads", "Miles", "Gross", "RPM"],
-    rows: entries.map((e) => ({
-      ...e,
-      values: [e.values[0], toNumber(e.values[1]).toLocaleString("en-US"), formatMoney(e.values[2]), formatRpm(e.values[3])],
-    })),
+    rows: entries.map((e) => ({ rank: e.rank, name: e.name, value: formatRpm(e.raw), raw: toNumber(e.raw) })),
   }
 }
 
 async function getGrossLeaderboards(): Promise<[Leaderboard, Leaderboard]> {
   const rows = await fetchSheetRows("1691011116")
 
-  const gross = readTable(rows, { rankCol: 2, nameCol: 3, cellCols: [4, 5, 6, 7] })
-  const ytd = readTable(rows, { rankCol: 25, nameCol: 26, cellCols: [27] })
+  const gross = readTable(rows, { rankCol: 2, nameCol: 3, valueCol: 7 })
+  const ytd = readTable(rows, { rankCol: 25, nameCol: 26, valueCol: 27 })
 
   return [
     {
       title: "Top Gross",
-      columns: ["Loads", "Miles", "Gross", "RPM"],
-      rows: gross.map((e) => ({
-        ...e,
-        values: [e.values[0], toNumber(e.values[1]).toLocaleString("en-US"), formatMoney(e.values[2]), `$${toNumber(e.values[3]).toFixed(2)}`],
-      })),
+      rows: gross.map((e) => ({ rank: e.rank, name: e.name, value: formatRpm(e.raw), raw: toNumber(e.raw) })),
     },
     {
       title: "Top YTD Gross",
-      columns: ["Total"],
-      rows: ytd.slice(0, 20).map((e) => ({ ...e, values: [formatMoney(e.values[0])] })),
+      rows: ytd
+        .slice(0, 20)
+        .map((e) => ({ rank: e.rank, name: e.name, value: formatMoney(e.raw), raw: toNumber(e.raw) })),
     },
   ]
 }
 
 async function getAvgLeaderboard(): Promise<Leaderboard> {
   const rows = await fetchSheetRows("1363491589")
-  const entries = readTable(rows, { rankCol: 1, nameCol: 3, cellCols: [4] })
+  const entries = readTable(rows, { rankCol: 1, nameCol: 3, valueCol: 4 })
 
   return {
     title: "Top Gross Average / Truck",
-    columns: ["Avg / Truck"],
-    rows: entries.map((e) => ({ ...e, values: [formatMoney(e.values[0])] })),
+    rows: entries.map((e) => ({ rank: e.rank, name: e.name, value: formatMoney(e.raw), raw: toNumber(e.raw) })),
   }
 }
 
