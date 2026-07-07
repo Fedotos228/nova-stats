@@ -28,7 +28,6 @@ export function buildSlides(): Slide[] {
     ...weatherImages.map((src): Slide => ({ type: "image", src, delay: IMAGE_DELAY })),
     { type: "leaderboard", id: "rpm", delay: DATA_DELAY },
     { type: "leaderboard", id: "gross", delay: DATA_DELAY },
-    { type: "leaderboard", id: "ytd", delay: DATA_DELAY },
     { type: "leaderboard", id: "avg", delay: DATA_DELAY },
   ]
 }
