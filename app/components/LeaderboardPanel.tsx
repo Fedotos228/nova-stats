@@ -48,7 +48,7 @@ function Row({ row, maxValue }: { row: LeaderboardRow; maxValue: number }) {
       </span>
       <span
         className="flex items-center justify-center text-center font-bold text-black"
-        style={{ backgroundColor: color, fontFamily: '"Comic Sans MS", cursive', fontSize: "2.85vh" }}
+        style={{ backgroundColor: color, fontFamily: '"Comic Sans MS", cursive', fontSize: "2.45vh" }}
       >
         {row.value}
       </span>
