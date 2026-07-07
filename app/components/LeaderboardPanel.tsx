@@ -1,54 +1,84 @@
-import Image from "next/image"
 import type { Leaderboard, LeaderboardRow } from "../lib/leaderboards"
 
-const RANK_BADGE_COLOR: Record<number, string> = {
-  1: "bg-nova-orange text-white",
-  2: "bg-nova-gray-400 text-nova-black",
-  3: "bg-nova-gray-600 text-white",
-}
+// Exact per-rank cell fill colors lifted from the source spreadsheet template
+// (a green -> yellow -> orange scale baked into the rank and value columns).
+const RANK_COLORS = [
+  "#36B854",
+  "#36B854",
+  "#46BD59",
+  "#56C25F",
+  "#66C764",
+  "#76CC6A",
+  "#86D16F",
+  "#96D674",
+  "#A6DB7A",
+  "#B6E080",
+  "#C6E586",
+  "#D6EA8C",
+  "#E6EF91",
+  "#F0E188",
+  "#F9D27F",
+  "#FFBF76",
+  "#FFAC6E",
+  "#FF9966",
+  "#FF8D5F",
+  "#FF8138",
+]
 
-function ListColumn({ rows, maxValue }: { rows: LeaderboardRow[]; maxValue: number }) {
+// Column widths, taken verbatim from the template's A:F column widths (15.13, 6.38, 48.88, 18.88, 133, 15.13).
+const COLUMNS = "6.375% 2.688% 20.59% 7.953% 56.03% 6.375%"
+
+function Row({ row, maxValue }: { row: LeaderboardRow; maxValue: number }) {
+  const color = RANK_COLORS[row.rank - 1] ?? "#FF8138"
+
   return (
-    <div className="flex flex-1 flex-col justify-between">
-      {rows.map((row) => (
-        <div key={row.rank} className="grid grid-cols-[2.7vw_15vw_8vw_1fr] items-center gap-[1vw] py-[0.55vh]">
-          <span
-            className={`flex h-[2.7vw] w-[2.7vw] items-center justify-center rounded-full font-heading text-[1.4vw] font-bold ${
-              RANK_BADGE_COLOR[row.rank] ?? "bg-nova-gray-600/50 text-white"
-            }`}
-          >
-            {row.rank}
-          </span>
-          <span className="truncate font-body text-[1.8vw] font-medium">{row.name}</span>
-          <span className="text-right font-body text-[1.7vw] font-semibold text-nova-orange">{row.value}</span>
-          <div className="h-[1.4vh] overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-nova-orange"
-              style={{ width: `${(row.raw / maxValue) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
+    <div className="grid items-stretch" style={{ gridTemplateColumns: COLUMNS, flex: "34.5 0 0" }}>
+      <span />
+      <span
+        className="flex items-center justify-center text-center font-bold text-black"
+        style={{ backgroundColor: color, fontFamily: '"Comic Sans MS", cursive', fontSize: "2.71vh" }}
+      >
+        {row.rank}
+      </span>
+      <span
+        className="flex items-center justify-center truncate text-center font-bold text-black"
+        style={{ fontFamily: "Arial, sans-serif", fontSize: "2.98vh" }}
+      >
+        {row.name}
+      </span>
+      <span
+        className="flex items-center justify-center text-center font-bold text-black"
+        style={{ backgroundColor: color, fontFamily: '"Comic Sans MS", cursive', fontSize: "2.85vh" }}
+      >
+        {row.value}
+      </span>
+      <span className="flex items-center px-[0.4vw]">
+        <span className="h-[60%] bg-[#F88B24]" style={{ width: `${(row.raw / maxValue) * 100}%` }} />
+      </span>
+      <span />
     </div>
   )
 }
 
 export function LeaderboardPanel({ leaderboard }: { leaderboard: Leaderboard }) {
-  const maxValue = Math.max(...leaderboard.rows.map((row) => row.raw))
+  const rows = leaderboard.rows.slice(0, 20)
+  const maxValue = Math.max(...rows.map((row) => row.raw))
 
   return (
-    <div className="flex h-full w-full flex-col bg-nova-black px-[3.5vw] py-[2.5vh] text-white">
-      <header className="mb-[1.8vh] shrink-0">
-        <Image src="/logo.svg" alt="Nova Lines" width={157} height={60} className="mb-[1vh] h-auto w-[9vw]" />
-        <h1 className="font-heading text-[4.2vw] font-bold uppercase leading-none text-white">
+    <div className="flex h-full w-full flex-col bg-[#EEEEEE]">
+      <header className="flex shrink-0 items-end" style={{ flex: "47.25 0 0", paddingLeft: "9.06%" }}>
+        <h1
+          className="whitespace-nowrap font-bold"
+          style={{ fontFamily: "Arial, sans-serif", fontSize: "6.1vh", color: "#980000" }}
+        >
           {leaderboard.title}
         </h1>
-        <div className="mt-[1.5vh] h-1 w-[8vw] bg-nova-orange" />
       </header>
 
-      <div className="grid grow grid-cols-2 gap-x-[2.5vw]">
-        <ListColumn rows={leaderboard.rows.slice(0, 10)} maxValue={maxValue} />
-        <ListColumn rows={leaderboard.rows.slice(10, 20)} maxValue={maxValue} />
+      <div className="flex flex-1 flex-col">
+        {rows.map((row) => (
+          <Row key={row.rank} row={row} maxValue={maxValue} />
+        ))}
       </div>
     </div>
   )
