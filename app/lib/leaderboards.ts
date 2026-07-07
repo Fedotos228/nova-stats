@@ -74,6 +74,10 @@ function formatRpm(raw: string) {
   return `$${toNumber(raw).toFixed(2)}`
 }
 
+function formatMoneyDecimal(raw: string) {
+  return `$${toNumber(raw).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 // Reads a fixed-position ranked table out of the sheet until the rank column goes blank.
 function readTable(
   rows: string[][],
@@ -102,24 +106,14 @@ async function getRpmLeaderboard(): Promise<Leaderboard> {
   }
 }
 
-async function getGrossLeaderboards(): Promise<[Leaderboard, Leaderboard]> {
+async function getGrossLeaderboard(): Promise<Leaderboard> {
   const rows = await fetchSheetRows("1691011116")
+  const entries = readTable(rows, { rankCol: 2, nameCol: 3, valueCol: 6 })
 
-  const gross = readTable(rows, { rankCol: 2, nameCol: 3, valueCol: 7 })
-  const ytd = readTable(rows, { rankCol: 25, nameCol: 26, valueCol: 27 })
-
-  return [
-    {
-      title: "Top Gross",
-      rows: gross.map((e) => ({ rank: e.rank, name: e.name, value: formatRpm(e.raw), raw: toNumber(e.raw) })),
-    },
-    {
-      title: "Top YTD Gross",
-      rows: ytd
-        .slice(0, 20)
-        .map((e) => ({ rank: e.rank, name: e.name, value: formatMoney(e.raw), raw: toNumber(e.raw) })),
-    },
-  ]
+  return {
+    title: "Top Gross",
+    rows: entries.map((e) => ({ rank: e.rank, name: e.name, value: formatMoneyDecimal(e.raw), raw: toNumber(e.raw) })),
+  }
 }
 
 async function getAvgLeaderboard(): Promise<Leaderboard> {
@@ -133,13 +127,9 @@ async function getAvgLeaderboard(): Promise<Leaderboard> {
 }
 
 export async function getLeaderboards() {
-  const [rpm, [gross, ytd], avg] = await Promise.all([
-    getRpmLeaderboard(),
-    getGrossLeaderboards(),
-    getAvgLeaderboard(),
-  ])
+  const [rpm, gross, avg] = await Promise.all([getRpmLeaderboard(), getGrossLeaderboard(), getAvgLeaderboard()])
 
-  return { rpm, gross, ytd, avg }
+  return { rpm, gross, avg }
 }
 
 export type Leaderboards = Awaited<ReturnType<typeof getLeaderboards>>
