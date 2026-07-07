@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import type { Leaderboards } from "../lib/leaderboards"
 import type { Slide } from "../slideshow-data"
 import { LeaderboardPanel } from "./LeaderboardPanel"
@@ -14,25 +14,45 @@ function SlideContent({ slide, leaderboards }: { slide: Slide; leaderboards: Lea
 }
 
 export function Slideshow({ slides, leaderboards }: { slides: Slide[]; leaderboards: Leaderboards }) {
-  const [index, setIndex] = useState(0)
+  // Each slot keeps showing its last assigned slide until it is off-screen and
+  // picked as the target for the *next* transition — never swapped while visible.
+  const [slotIndices, setSlotIndices] = useState<[number, number]>([0, 1 % slides.length])
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0)
 
-  const slots = useMemo<[number, number]>(() => {
-    return activeSlot === 0 ? [index, (index + 1) % slides.length] : [(index + 1) % slides.length, index]
-  }, [activeSlot, index, slides.length])
+  useEffect(() => {
+    const preloaded = slides
+      .filter((slide) => slide.type === "image")
+      .map((slide) => {
+        const img = new window.Image()
+        img.src = slide.src
+        return img
+      })
+    return () => {
+      preloaded.forEach((img) => {
+        img.src = ""
+      })
+    }
+  }, [slides])
 
   useEffect(() => {
+    const currentIndex = slotIndices[activeSlot]
+
     const advance = (i: number) => {
-      setIndex((i + slides.length) % slides.length)
-      setActiveSlot((slot) => (slot === 0 ? 1 : 0))
+      const nextIndex = (i + slides.length) % slides.length
+      const inactiveSlot = activeSlot === 0 ? 1 : 0
+      setSlotIndices((prev) => {
+        const next: [number, number] = [...prev]
+        next[inactiveSlot] = nextIndex
+        return next
+      })
+      setActiveSlot(inactiveSlot)
     }
 
-    const timerId = setTimeout(() => advance(index + 1), slides[index].delay)
+    const timerId = setTimeout(() => advance(currentIndex + 1), slides[currentIndex].delay)
 
     const handleKeydown = (e: KeyboardEvent) => {
-      clearTimeout(timerId)
-      if (e.key === "ArrowRight") advance(index + 1)
-      else if (e.key === "ArrowLeft") advance(index - 1)
+      if (e.key === "ArrowRight") advance(currentIndex + 1)
+      else if (e.key === "ArrowLeft") advance(currentIndex - 1)
     }
     window.addEventListener("keydown", handleKeydown)
 
@@ -40,11 +60,11 @@ export function Slideshow({ slides, leaderboards }: { slides: Slide[]; leaderboa
       clearTimeout(timerId)
       window.removeEventListener("keydown", handleKeydown)
     }
-  }, [index, slides])
+  }, [activeSlot, slotIndices, slides])
 
   return (
     <div className="viewer">
-      {slots.map((slideIndex, slot) => (
+      {slotIndices.map((slideIndex, slot) => (
         <div key={slot} className={`slide-layer ${slot === activeSlot ? "active" : ""}`}>
           <SlideContent slide={slides[slideIndex]} leaderboards={leaderboards} />
         </div>
