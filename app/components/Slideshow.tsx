@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react"
 import type { Leaderboards } from "../lib/leaderboards"
 import type { Slide } from "../slideshow-data"
+import ImageContainer from './ImageContainer'
 import { LeaderboardPanel } from "./LeaderboardPanel"
 
 function SlideContent({ slide, leaderboards }: { slide: Slide; leaderboards: Leaderboards }) {
   if (slide.type === "image") {
     // eslint-disable-next-line @next/next/no-img-element -- runtime-swapped crossfade slide, not a static asset
-    return <img src={slide.src} alt="" className="h-full w-full object-contain" />
+    return <ImageContainer src={slide.src} />
   }
   return <LeaderboardPanel leaderboard={leaderboards[slide.id]} />
 }
