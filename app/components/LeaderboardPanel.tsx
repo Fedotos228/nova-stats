@@ -53,7 +53,7 @@ function Row({ row, maxValue }: { row: LeaderboardRow; maxValue: number }) {
         {row.value}
       </span>
       <span className="flex items-center px-[0.4vw]">
-        <span className="h-[60%] bg-[#F88B24]" style={{ width: `${(row.raw / maxValue) * 100}%` }} />
+        <span className="h-[80%] bg-[#F88B24]" style={{ width: `${(row.raw / maxValue) * 100}%` }} />
       </span>
       <span />
     </div>
