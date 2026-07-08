@@ -1,23 +1,23 @@
+import fs from "fs"
+import path from "path"
 import type { Leaderboards } from "./lib/leaderboards"
 
-export const IMAGE_DELAY = 20000 // 20 sec
-export const DATA_DELAY = 20000 // 20 sec
+export const IMAGE_DELAY = 20000
+export const DATA_DELAY = 20000
 
-export const weatherImages = [
-  "/Screenshot_1.realesrgan.png",
-  "/Screenshot_2.realesrgan.png",
-  "/Screenshot_3.realesrgan.png",
-  "/Screenshot_4.realesrgan.png",
-  "/Screenshot_5.realesrgan.png",
-  "/Screenshot_6.realesrgan.png",
-  "/Screenshot_7.realesrgan.png",
-  "/Screenshot_8.realesrgan.png",
-  "/Screenshot_9.realesrgan.png",
-  "/Screenshot_10.realesrgan.png",
-  "/Screenshot_11.realesrgan.png",
-  "/Screenshot_12.realesrgan.png",
-  "/Screenshot_13.realesrgan.png",
-]
+const WEATHER_DIR = path.join(process.cwd(), "public", "weather")
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"])
+
+// Lists every image in public/weather so new screenshots show up without touching this file.
+function readWeatherImages(): string[] {
+  return fs
+    .readdirSync(WEATHER_DIR)
+    .filter((file) => IMAGE_EXTENSIONS.has(path.extname(file).toLowerCase()))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((file) => `/weather/${file}`)
+}
+
+export const weatherImages = readWeatherImages()
 
 export type Slide =
   | { type: "image"; src: string; delay: number }
