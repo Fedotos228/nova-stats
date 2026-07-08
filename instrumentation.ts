@@ -1,4 +1,4 @@
-const REFRESH_HOUR = 15 // 15:00 local time (dev-only fallback; production uses the Vercel Cron below)
+const REFRESH_HOUR = 14 // 15:00 local time (dev-only fallback; production uses the Vercel Cron below)
 
 function msUntilNextRun() {
   const next = new Date()
