@@ -1,4 +1,4 @@
-const REFRESH_HOUR = 15 // 15:00 local time
+const REFRESH_HOUR = 15 // 15:00 local time (dev-only fallback; production uses the Vercel Cron below)
 
 function msUntilNextRun() {
   const next = new Date()
@@ -10,9 +10,13 @@ function msUntilNextRun() {
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return
 
+  // On Vercel, a Cron Job (see vercel.json) hits /api/refresh-weather on schedule instead.
+  // A setTimeout scheduled here has no guarantee of surviving between serverless invocations.
+  if (process.env.VERCEL) return
+
   const { refreshWeatherImages, hasWeatherImages } = await import("./app/lib/weather-scraper")
 
-  if (!hasWeatherImages()) {
+  if (!(await hasWeatherImages())) {
     await refreshWeatherImages().catch((err) => console.error("[weather] initial refresh failed", err))
   }
 
