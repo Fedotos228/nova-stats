@@ -1,8 +1,10 @@
+import fs from "fs"
+import path from "path"
 import type { Leaderboards } from "./lib/leaderboards"
 import { listWeatherImageUrls } from "./lib/weather-scraper"
 
-export const IMAGE_DELAY = 20000 // 20 sec
-export const DATA_DELAY = 20000 // 20 sec
+export const IMAGE_DELAY = 20000
+export const DATA_DELAY = 20000
 
 export type Slide =
   | { type: "image"; src: string; delay: number }
