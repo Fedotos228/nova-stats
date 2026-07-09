@@ -1,0 +1,21 @@
+name: Refresh weather images
+
+on:
+  schedule:
+    # 12:00 UTC ≈ 15:00 Europe/Bucharest in summer (UTC+3) — adjust if your target
+    # timezone or its DST offset differs.
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: node scripts/refresh-weather.cjs
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "refresh-weather": "node --env-file=.env.local scripts/refresh-weather.cjs"
   },
   "dependencies": {
     "@tensorflow/tfjs-node": "^4.22.0",
