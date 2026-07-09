@@ -1,18 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // The refresh-weather route spawns scripts/upscale-images.cjs as a subprocess (not a
-  // static import), so Next's build tracer can't see it needs @tensorflow/tfjs-node's
-  // native binary, upscaler, or sharp — force them into the deployed function bundle.
-  outputFileTracingIncludes: {
-    "/api/refresh-weather": [
-      "./scripts/upscale-images.cjs",
-      "./node_modules/@tensorflow/tfjs-node/**/*",
-      "./node_modules/upscaler/**/*",
-      "./node_modules/@upscalerjs/esrgan-slim/**/*",
-      "./node_modules/sharp/**/*",
-    ],
-  },
+  // These use Node-specific features (a native binary, or CJS-only exports) that Next's
+  // own bundler mishandles — left as plain `require()`s, the build's file tracer can
+  // follow their real dependency graph (including transitive deps) automatically.
+  serverExternalPackages: ["@tensorflow/tfjs-node", "upscaler", "@upscalerjs/esrgan-slim"],
 };
 
 export default nextConfig;
