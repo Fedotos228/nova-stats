@@ -14,11 +14,29 @@ function SlideContent({ slide, leaderboards }: { slide: Slide; leaderboards: Lea
   return <LeaderboardPanel leaderboard={leaderboards[slide.id]} />
 }
 
+// The weather images only ever change once a day, via the GitHub Actions refresh (12:00
+// UTC) — this page is left open on a TV for days at a time, so it needs to reload itself
+// to pick up the new set. 10 minutes after the cron leaves enough buffer for that job to finish.
+const RELOAD_HOUR_UTC = 12
+const RELOAD_MINUTE_UTC = 10
+
+function msUntilNextReload() {
+  const next = new Date()
+  next.setUTCHours(RELOAD_HOUR_UTC, RELOAD_MINUTE_UTC, 0, 0)
+  if (next.getTime() <= Date.now()) next.setUTCDate(next.getUTCDate() + 1)
+  return next.getTime() - Date.now()
+}
+
 export function Slideshow({ slides, leaderboards }: { slides: Slide[]; leaderboards: Leaderboards }) {
   // Each slot keeps showing its last assigned slide until it is off-screen and
   // picked as the target for the *next* transition — never swapped while visible.
   const [slotIndices, setSlotIndices] = useState<[number, number]>([0, 1 % slides.length])
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0)
+
+  useEffect(() => {
+    const timerId = setTimeout(() => window.location.reload(), msUntilNextReload())
+    return () => clearTimeout(timerId)
+  }, [])
 
   useEffect(() => {
     const preloaded = slides
