@@ -58,6 +58,10 @@ async function main() {
       contentType: "image/png",
       addRandomSuffix: false,
       allowOverwrite: true,
+      // Defaults to a month — this stable URL gets fresh content daily, so the app's
+      // own cache-busting query param (see slideshow-data.ts) does the real work, and
+      // this is just a shorter backstop for anything that might reference the bare URL.
+      cacheControlMaxAge: 60 * 60 * 6, // 6 hours
     })
     freshPathnames.push(blob.pathname)
     console.log(`upscaled ${url} -> ${blob.pathname}`)
