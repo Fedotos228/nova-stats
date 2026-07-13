@@ -15,7 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm ci
+      # @upscalerjs/esrgan-slim peer-requires @tensorflow/tfjs@~4.11.0, but we depend on
+      # @tensorflow/tfjs-node@^4.22.0 directly — harmless in practice, so installed loosely.
+      - run: npm ci --legacy-peer-deps
       - run: node scripts/refresh-weather.cjs
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
