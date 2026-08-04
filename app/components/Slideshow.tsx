@@ -14,11 +14,16 @@ function SlideContent({ slide, leaderboards }: { slide: Slide; leaderboards: Lea
   return <LeaderboardPanel leaderboard={leaderboards[slide.id]} />
 }
 
-// The weather images only ever change once a day, via the GitHub Actions refresh (12:00
-// UTC) — this page is left open on a TV for days at a time, so it needs to reload itself
-// to pick up the new set. 10 minutes after the cron leaves enough buffer for that job to finish.
-const RELOAD_HOUR_UTC = 12
-const RELOAD_MINUTE_UTC = 10
+// The weather images only ever change once a day — refreshed locally on the display
+// machine at 15:00 *local* time (scripts/windows/install-scheduled-tasks.ps1), with a
+// same-day GitHub Actions fallback fixed at 18:00 UTC — and this page is left open on a
+// TV for days at a time, so it needs to reload itself to pick up the new set. The local
+// task's UTC-equivalent time shifts with DST (e.g. 13:00 UTC in winter), so reloading
+// right after it can't work year-round; instead this waits until just after the fixed
+// 18:00 UTC fallback, which is always after both possible refreshes regardless of DST or
+// which one actually ran.
+const RELOAD_HOUR_UTC = 18
+const RELOAD_MINUTE_UTC = 15
 
 function msUntilNextReload() {
   const next = new Date()

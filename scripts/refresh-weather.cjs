@@ -1,9 +1,11 @@
 // Standalone script: scrapes the 4-day forecast, upscales it 4x with ESRGAN, and uploads
-// the result to Vercel Blob. Runs on a GitHub Actions schedule (see
-// .github/workflows/refresh-weather.yml), not inside the Vercel app itself — the AI
-// upscaling step needs @tensorflow/tfjs-node's native (fast) backend, which both crashes
-// in Vercel's serverless sandbox (it disallows SharedArrayBuffer) and is far too slow on
-// the pure-JS fallback to fit any serverless function's execution time limit.
+// the result to Vercel Blob. Runs on a daily schedule on the display machine (see
+// scripts/windows/install-scheduled-tasks.ps1), with GitHub Actions
+// (.github/workflows/refresh-weather.yml) as a same-day fallback — not inside the Vercel
+// app itself, since the AI upscaling step needs @tensorflow/tfjs-node's native (fast)
+// backend, which both crashes in Vercel's serverless sandbox (it disallows
+// SharedArrayBuffer) and is far too slow on the pure-JS fallback to fit any serverless
+// function's execution time limit.
 const { del, list, put } = require("@vercel/blob")
 
 // @tensorflow/tfjs-node's prebuilt native bindings call a `util` helper Node removed in v20+.

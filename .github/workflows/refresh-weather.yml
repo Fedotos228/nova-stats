@@ -1,10 +1,15 @@
-name: Refresh weather images
+name: Refresh weather images (fallback)
 
+# Primary refresh now runs locally on the display machine (see
+# scripts/windows/install-scheduled-tasks.ps1, "NovaStats Weather Refresh" task, default
+# 15:00 local). This workflow is a same-day fallback in case that machine is off or the
+# local task fails — it runs a few hours later so it only matters when the local run
+# didn't happen; both are idempotent (last write wins), so an overlap is harmless.
 on:
   schedule:
-    # 12:00 UTC ≈ 15:00 Europe/Bucharest in summer (UTC+3) — adjust if your target
+    # 18:00 UTC ≈ 21:00 Europe/Bucharest in summer (UTC+3) — adjust if your target
     # timezone or its DST offset differs.
-    - cron: "0 12 * * *"
+    - cron: "0 18 * * *"
   workflow_dispatch: {}
 
 jobs:
