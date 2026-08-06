@@ -14,34 +14,43 @@ function SlideContent({ slide, leaderboards }: { slide: Slide; leaderboards: Lea
   return <LeaderboardPanel leaderboard={leaderboards[slide.id]} />
 }
 
-// The weather images only ever change once a day — refreshed locally on the display
-// machine at 15:00 *local* time (scripts/windows/install-scheduled-tasks.ps1), with a
-// same-day GitHub Actions fallback fixed at 18:00 UTC — and this page is left open on a
-// TV for days at a time, so it needs to reload itself to pick up the new set. The local
-// task's UTC-equivalent time shifts with DST (e.g. 13:00 UTC in winter), so reloading
-// right after it can't work year-round; instead this waits until just after the fixed
-// 18:00 UTC fallback, which is always after both possible refreshes regardless of DST or
-// which one actually ran.
-const RELOAD_HOUR_UTC = 18
-const RELOAD_MINUTE_UTC = 15
+// The weather images change once a day, but *when* depends on which refresh path ran —
+// the local task on the display machine (scripts/windows/install-scheduled-tasks.ps1) or
+// the GitHub Actions fallback at 18:00 UTC — and the local one's UTC-equivalent shifts
+// with DST. This page is left open on a TV for days at a time, so rather than guess a
+// wall-clock reload time that has to be after every possibility, it polls a heartbeat
+// that changes only when new images actually land, and reloads then.
+const VERSION_POLL_INTERVAL = 5 * 60 * 1000
 
-function msUntilNextReload() {
-  const next = new Date()
-  next.setUTCHours(RELOAD_HOUR_UTC, RELOAD_MINUTE_UTC, 0, 0)
-  if (next.getTime() <= Date.now()) next.setUTCDate(next.getUTCDate() + 1)
-  return next.getTime() - Date.now()
-}
-
-export function Slideshow({ slides, leaderboards }: { slides: Slide[]; leaderboards: Leaderboards }) {
+export function Slideshow({
+  slides,
+  leaderboards,
+  weatherVersion,
+}: {
+  slides: Slide[]
+  leaderboards: Leaderboards
+  weatherVersion: string
+}) {
   // Each slot keeps showing its last assigned slide until it is off-screen and
   // picked as the target for the *next* transition — never swapped while visible.
   const [slotIndices, setSlotIndices] = useState<[number, number]>([0, 1 % slides.length])
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0)
 
   useEffect(() => {
-    const timerId = setTimeout(() => window.location.reload(), msUntilNextReload())
-    return () => clearTimeout(timerId)
-  }, [])
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await fetch("/api/weather-version", { cache: "no-store" })
+        if (!res.ok) return
+        const { version } = await res.json()
+        // A missing/empty listing would reload us into the same empty page on a loop.
+        if (version && version !== weatherVersion) window.location.reload()
+      } catch {
+        // Offline or the server is restarting — the next tick tries again.
+      }
+    }, VERSION_POLL_INTERVAL)
+
+    return () => clearInterval(intervalId)
+  }, [weatherVersion])
 
   useEffect(() => {
     const preloaded = slides
