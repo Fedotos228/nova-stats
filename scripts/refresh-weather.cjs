@@ -1,4 +1,4 @@
-// Standalone script: scrapes the 4-day forecast, upscales it 4x with ESRGAN, and uploads
+// Standalone script: downloads the NWS forecast images, upscales them 4x with ESRGAN, and uploads
 // the result to Vercel Blob. Runs on a daily schedule on the display machine (see
 // scripts/windows/install-scheduled-tasks.ps1), with GitHub Actions
 // (.github/workflows/refresh-weather.yml) as a same-day fallback — not inside the Vercel
@@ -19,12 +19,18 @@ const UpscalerJS = require("upscaler/node")
 const model = require("@upscalerjs/esrgan-slim/4x")
 const sharp = require("sharp")
 
-const FORECAST_PAGE_URL = "https://www.weatherstreet.com/states/u-s-weather-forecast.htm"
-const IMAGE_URL_PATTERN = /https:\/\/graphical\.weather\.gov\/images\/conus\/Wx\d+_conus\.png/g
+// These images are published by the National Weather Service. We used to discover their
+// URLs by scraping weatherstreet.com's 7-day slider, but that site was only ever a
+// middleman pointing at graphical.weather.gov, and on 2026-08-06 its TLS certificate
+// expired (notAfter=Aug 5 23:59:59 2026 GMT), which took the whole refresh down with it —
+// http:// is 301'd straight back to https://, so there was no way around it. The URLs are
+// a plain numbered sequence, so we build them ourselves and drop the middleman.
+const imageUrl = (period) => `https://graphical.weather.gov/images/conus/Wx${period}_conus.png`
 
-// The site's 7-day slider steps through 28 forecast periods (4 per day), oldest first.
-const PERIODS_PER_DAY = 4
-const DAYS_TO_KEEP = 4
+// Wx1..WxN are consecutive NDFD forecast periods 3 hours apart, oldest first (verified:
+// Wx1 = Aug 05 7 PM EST, Wx16 = Aug 07 4 PM EST = Wx1 + 15x3h). 16 reproduces exactly the
+// set the scrape used to return — roughly two days of forecast.
+const IMAGE_COUNT = 16
 
 const BLOB_PREFIX = "weather/weatherstreet-"
 
@@ -38,12 +44,7 @@ async function upscaleImage(upscaler, buffer) {
 }
 
 async function main() {
-  const res = await fetch(FORECAST_PAGE_URL)
-  if (!res.ok) throw new Error(`Failed to load forecast page: ${res.status}`)
-  const html = await res.text()
-
-  const urls = [...new Set(html.match(IMAGE_URL_PATTERN) ?? [])].slice(0, DAYS_TO_KEEP * PERIODS_PER_DAY)
-  if (urls.length === 0) throw new Error("No forecast images found on the page")
+  const urls = Array.from({ length: IMAGE_COUNT }, (_, i) => imageUrl(i + 1))
 
   const upscaler = new UpscalerJS({ model })
 
