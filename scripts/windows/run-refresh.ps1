@@ -72,9 +72,21 @@ try {
   }
 
   # Same command `npm run refresh-weather` would run, minus the npm/cmd.exe indirection.
-  & $NodeExe --env-file=.env.local scripts/refresh-weather.cjs *>&1 |
-    Tee-Object -FilePath $LogFile -Append
-  $exitCode = $LASTEXITCODE
+  #
+  # ErrorActionPreference is deliberately relaxed around this one call. Left at "Stop",
+  # PowerShell turns the *first* line a native command writes to stderr into a terminating
+  # NativeCommandError, which kills the pipeline and discards everything after it — that is
+  # how a full Node stack trace once got truncated to a single useless "loader:1520" line.
+  # Success here is decided by the exit code below, not by whether stderr was written to.
+  $previousEap = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    & $NodeExe --env-file=.env.local scripts/refresh-weather.cjs 2>&1 |
+      Tee-Object -FilePath $LogFile -Append
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousEap
+  }
 
   if ($exitCode -eq 0) {
     Write-Log "=== refresh OK ==="
@@ -82,7 +94,10 @@ try {
     Write-Log "=== refresh FAILED (exit $exitCode) ==="
   }
 } catch {
-  Write-Log ("=== refresh FAILED: {0}" -f $_.Exception.Message)
+  # Log the whole error record, not just .Message — the message alone is usually the first
+  # line of a much longer Node stack trace, which is exactly the part worth keeping.
+  Write-Log "=== refresh FAILED (PowerShell error) ==="
+  Add-Content -Path $LogFile -Value ($_ | Out-String)
   $exitCode = 1
 } finally {
   Get-ChildItem -Path $LogDir -Filter "refresh-*.log" -ErrorAction SilentlyContinue |
