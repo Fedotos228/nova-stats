@@ -65,18 +65,27 @@ Write-Host ("  .next build  : {0}" -f $(if (Test-Path (Join-Path $RepoRoot ".nex
 Show-Task "NovaStats Weather Refresh"
 Show-Task "NovaStats Kiosk"
 
-Write-Host ""
-Write-Host "--- latest refresh log ---" -ForegroundColor Cyan
 $LogDir = Join-Path $RepoRoot "logs"
-$latest = Get-ChildItem -Path $LogDir -Filter "refresh-*.log" -ErrorAction SilentlyContinue |
-  Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
-if (-not $latest) {
-  Write-Host "  No log files in $LogDir." -ForegroundColor Red
-  Write-Host "  The refresh has never run through run-refresh.ps1. Trigger it now with:" -ForegroundColor Yellow
-  Write-Host "    Start-ScheduledTask -TaskName 'NovaStats Weather Refresh'"
-} else {
+function Show-Log([string]$Pattern, [string]$Title, [string]$Hint) {
+  Write-Host ""
+  Write-Host "--- $Title ---" -ForegroundColor Cyan
+
+  $latest = Get-ChildItem -Path $LogDir -Filter $Pattern -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+  if (-not $latest) {
+    Write-Host "  No $Pattern in $LogDir." -ForegroundColor Red
+    Write-Host "  $Hint" -ForegroundColor Yellow
+    return
+  }
+
   Write-Host ("  {0} (last written {1})" -f $latest.FullName, $latest.LastWriteTime)
   Write-Host ""
-  Get-Content $latest.FullName -Tail $Lines
+  # -Encoding UTF8 matches what the scripts write. Without it PowerShell 5.1 guesses, and
+  # guesses wrong on anything non-ASCII, rendering the log as CJK gibberish.
+  Get-Content $latest.FullName -Tail $Lines -Encoding UTF8
 }
+
+Show-Log "refresh-*.log" "latest refresh log" "Trigger it with: Start-ScheduledTask -TaskName 'NovaStats Weather Refresh'"
+Show-Log "kiosk-*.log" "latest kiosk log" "Trigger it with: .\start-kiosk.ps1"

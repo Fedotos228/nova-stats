@@ -23,10 +23,13 @@ New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
 $LogFile = Join-Path $LogDir ("refresh-{0}.log" -f (Get-Date -Format "yyyy-MM-dd"))
 
+# -Encoding UTF8 everywhere is load-bearing, not tidiness: in PowerShell 5.1 Add-Content
+# defaults to ANSI while Tee-Object writes UTF-16LE, so a log written by both ends up with
+# two encodings interleaved and is unreadable whichever way you open it.
 function Write-Log([string]$Message) {
   $line = "[{0}] {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
   Write-Host $line
-  Add-Content -Path $LogFile -Value $line
+  Add-Content -Path $LogFile -Value $line -Encoding UTF8
 }
 
 # Task Scheduler hands the task a stripped-down environment, so never rely on a bare
@@ -81,8 +84,12 @@ try {
   $previousEap = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   try {
-    & $NodeExe --env-file=.env.local scripts/refresh-weather.cjs 2>&1 |
-      Tee-Object -FilePath $LogFile -Append
+    # Not Tee-Object: it has no -Encoding in PowerShell 5.1 and hardcodes UTF-16LE.
+    & $NodeExe --env-file=.env.local scripts/refresh-weather.cjs 2>&1 | ForEach-Object {
+      $text = if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.ToString() } else { $_ }
+      Write-Host $text
+      Add-Content -Path $LogFile -Value $text -Encoding UTF8
+    }
     $exitCode = $LASTEXITCODE
   } finally {
     $ErrorActionPreference = $previousEap
@@ -97,7 +104,7 @@ try {
   # Log the whole error record, not just .Message — the message alone is usually the first
   # line of a much longer Node stack trace, which is exactly the part worth keeping.
   Write-Log "=== refresh FAILED (PowerShell error) ==="
-  Add-Content -Path $LogFile -Value ($_ | Out-String)
+  Add-Content -Path $LogFile -Value ($_ | Out-String) -Encoding UTF8
   $exitCode = 1
 } finally {
   Get-ChildItem -Path $LogDir -Filter "refresh-*.log" -ErrorAction SilentlyContinue |
