@@ -12,15 +12,19 @@ $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 # Task Scheduler reports the action's exit code as LastTaskResult, so 0 here means
 # run-refresh.ps1 itself exited 0. The non-zero values below are the ones that actually
 # show up in practice.
+# Keys are strings on purpose. Task Scheduler results are unsigned 32-bit, so anything from
+# the 0xC0000000 range (a terminated process) overflows [int] and throws on cast.
 $ResultMeanings = @{
-  0            = "success"
-  1            = "the script ran and failed - read the log below"
-  2            = "file not found (0x2) - the task's executable could not be launched"
-  267009       = "currently running (0x41301)"
-  267011       = "has not run yet (0x41303)"
-  267014       = "terminated by the user (0x41306)"
-  2147942401   = "file not found (0x80070002)"
-  2147943712   = "logon failure / wrong principal (0x800704DD)"
+  "0"          = "success"
+  "1"          = "the script ran and failed - read the log below"
+  "2"          = "file not found - the task's executable could not be launched"
+  "267009"     = "currently running"
+  "267011"     = "has not run yet"
+  "267014"     = "stopped by the user or by the execution time limit"
+  "2147942401" = "file not found"
+  "2147943712" = "logon failure / wrong principal"
+  "3221225786" = "terminated by Ctrl+C or a closing console - it did not fail on its own, something ended its session"
+  "3221225794" = "a required DLL was not found"
 }
 
 function Show-Task([string]$Name) {
@@ -35,11 +39,14 @@ function Show-Task([string]$Name) {
 
   $info = Get-ScheduledTaskInfo -TaskName $Name
   $result = $info.LastTaskResult
-  $meaning = if ($ResultMeanings.ContainsKey([int]$result)) { $ResultMeanings[[int]$result] } else { "see 'Task Scheduler error codes'" }
+  $key = [string]$result
+  $meaning = if ($ResultMeanings.ContainsKey($key)) { $ResultMeanings[$key] } else { "look this code up as 'Task Scheduler error code'" }
+  # The hex form is the one Microsoft's documentation and every search result use.
+  $hex = "0x{0:X8}" -f [uint32]$result
 
   Write-Host ("  State        : {0}" -f $task.State)
   Write-Host ("  Last run     : {0}" -f $info.LastRunTime)
-  Write-Host ("  Last result  : {0} ({1})" -f $result, $meaning) -ForegroundColor $(if ($result -eq 0) { "Green" } else { "Red" })
+  Write-Host ("  Last result  : {0} / {1} - {2}" -f $result, $hex, $meaning) -ForegroundColor $(if ($result -eq 0) { "Green" } else { "Red" })
   Write-Host ("  Next run     : {0}" -f $info.NextRunTime)
   Write-Host ("  Runs as      : {0} ({1})" -f $task.Principal.UserId, $task.Principal.LogonType)
   foreach ($action in $task.Actions) {
