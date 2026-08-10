@@ -1,14 +1,14 @@
 name: Refresh weather images (fallback)
 
-# Primary refresh now runs locally on the display machine (see
-# scripts/windows/install-scheduled-tasks.ps1, "NovaStats Weather Refresh" task, default
-# 15:00 local). This workflow is a same-day fallback in case that machine is off or the
-# local task fails — it runs a few hours later so it only matters when the local run
-# didn't happen; both are idempotent (last write wins), so an overlap is harmless.
+# The refresh itself now runs as a Vercel Cron (see vercel.json, 11:00 UTC). This workflow
+# is a backup that calls the very same endpoint a few hours later, so a cron that silently
+# fails to fire still gets covered the same day. Both are idempotent — last write wins.
+#
+# It deliberately does not reimplement the refresh: if Vercel were down hard, an
+# independent copy would not help anyway, because the display itself is served from Vercel.
 on:
   schedule:
-    # 18:00 UTC ≈ 21:00 Europe/Bucharest in summer (UTC+3) — adjust if your target
-    # timezone or its DST offset differs.
+    # 18:00 UTC ≈ 21:00 Europe/Chisinau in summer (UTC+3).
     - cron: "0 18 * * *"
   workflow_dispatch: {}
 
@@ -16,11 +16,14 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - run: npm ci
-      - run: node scripts/refresh-weather.cjs
+      - name: Trigger the refresh endpoint
         env:
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o /tmp/body.json -w '%{http_code}' \
+            --max-time 300 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://nova-stats.vercel.app/api/cron/refresh-weather)
+          cat /tmp/body.json
+          echo
+          test "$code" = "200"

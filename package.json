@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "refresh-weather": "node --env-file=.env.local scripts/refresh-weather.cjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",
