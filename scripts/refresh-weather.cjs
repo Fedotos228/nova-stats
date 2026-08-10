@@ -1,22 +1,8 @@
-// Standalone script: downloads the NWS forecast images, upscales them 4x with ESRGAN, and uploads
-// the result to Vercel Blob. Runs on a daily schedule on the display machine (see
+// Standalone script: downloads the NWS forecast images, upscales them 4x, and uploads the
+// result to Vercel Blob. Runs on a daily schedule on the display machine (see
 // scripts/windows/install-scheduled-tasks.ps1), with GitHub Actions
-// (.github/workflows/refresh-weather.yml) as a same-day fallback — not inside the Vercel
-// app itself, since the AI upscaling step needs @tensorflow/tfjs-node's native (fast)
-// backend, which both crashes in Vercel's serverless sandbox (it disallows
-// SharedArrayBuffer) and is far too slow on the pure-JS fallback to fit any serverless
-// function's execution time limit.
+// (.github/workflows/refresh-weather.yml) as a same-day fallback.
 const { del, list, put } = require("@vercel/blob")
-
-// @tensorflow/tfjs-node's prebuilt native bindings call a `util` helper Node removed in v20+.
-const util = require("util")
-if (!util.isNullOrUndefined) {
-  util.isNullOrUndefined = (v) => v === null || v === undefined
-}
-
-require("@tensorflow/tfjs-node")
-const UpscalerJS = require("upscaler/node")
-const model = require("@upscalerjs/esrgan-slim/4x")
 const sharp = require("sharp")
 
 // These images are published by the National Weather Service. We used to discover their
@@ -32,21 +18,29 @@ const imageUrl = (period) => `https://graphical.weather.gov/images/conus/Wx${per
 // set the scrape used to return — roughly two days of forecast.
 const IMAGE_COUNT = 16
 
+// 515x388 sources become 2060x1552, which is what the TV renders full-screen.
+const UPSCALE_FACTOR = 4
+
 const BLOB_PREFIX = "weather/weatherstreet-"
 
-async function upscaleImage(upscaler, buffer) {
-  const tensor = await upscaler.upscale(buffer, { output: "tensor" })
-  const [height, width, channels] = tensor.shape
-  const pixels = Buffer.from(Uint8Array.from(await tensor.data()))
-  tensor.dispose()
+// Plain Lanczos resampling, not ML super-resolution. This used to run ESRGAN via
+// @tensorflow/tfjs-node, which cost ~500MB of native dependencies, needed a shim for a
+// `util` helper Node removed in v20+, and — decisively — does not work at all on the
+// Windows display machine, where its prebuilt bindings fail to load. These are flat-colour
+// vector-style maps with anti-aliased text rather than photographs, so there is nothing
+// for a super-resolution model to reconstruct: a side-by-side of the caption text at 4x
+// was indistinguishable between the two.
+async function upscaleImage(buffer) {
+  const { width, height } = await sharp(buffer).metadata()
 
-  return sharp(pixels, { raw: { width, height, channels } }).png().toBuffer()
+  return sharp(buffer)
+    .resize(width * UPSCALE_FACTOR, height * UPSCALE_FACTOR, { kernel: "lanczos3" })
+    .png()
+    .toBuffer()
 }
 
 async function main() {
   const urls = Array.from({ length: IMAGE_COUNT }, (_, i) => imageUrl(i + 1))
-
-  const upscaler = new UpscalerJS({ model })
 
   const freshPathnames = []
   for (const [i, url] of urls.entries()) {
@@ -54,7 +48,7 @@ async function main() {
     if (!imgRes.ok) throw new Error(`Failed to download ${url}: ${imgRes.status}`)
     const raw = Buffer.from(await imgRes.arrayBuffer())
 
-    const upscaled = await upscaleImage(upscaler, raw)
+    const upscaled = await upscaleImage(raw)
     const name = `${String(i + 1).padStart(2, "0")}.png`
     const blob = await put(`${BLOB_PREFIX}${name}`, upscaled, {
       access: "public",
@@ -77,7 +71,7 @@ async function main() {
   const stale = blobs.filter((blob) => !fresh.has(blob.pathname))
   if (stale.length > 0) await del(stale.map((blob) => blob.url))
 
-  console.log(`[weather] refreshed ${freshPathnames.length} images (upscaled 4x)`)
+  console.log(`[weather] refreshed ${freshPathnames.length} images (upscaled ${UPSCALE_FACTOR}x)`)
 }
 
 main().catch((err) => {
