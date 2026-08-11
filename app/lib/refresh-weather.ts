@@ -30,10 +30,17 @@ const BLOB_PREFIX = "weather/weatherstreet-"
 async function upscaleImage(buffer: Buffer): Promise<Buffer> {
   const { width, height } = await sharp(buffer).metadata()
 
-  return sharp(buffer)
+  const resized = await sharp(buffer)
     .resize(width * UPSCALE_FACTOR, height * UPSCALE_FACTOR, { kernel: "lanczos3" })
     .png()
     .toBuffer()
+
+  // Buffer.from copies, and the copy is the entire point. sharp hands back memory libvips
+  // allocated natively, outside the V8 heap; fetch's WHATWG body validation rejects such a
+  // buffer on Vercel's linux-x64 runtime with "ArrayBuffer: SharedArrayBuffer is not
+  // allowed." That is how the put() below failed in production while passing locally on
+  // darwin-arm64. A plain V8-owned copy sidesteps the classification question entirely.
+  return Buffer.from(resized)
 }
 
 export async function refreshWeatherImages(): Promise<{ count: number }> {

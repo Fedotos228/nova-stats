@@ -1,9 +1,8 @@
 import { list } from "@vercel/blob"
 
-// Images are populated by scripts/refresh-weather.cjs, run daily on the display machine
-// (see scripts/windows/install-scheduled-tasks.ps1) with GitHub Actions
-// (.github/workflows/refresh-weather.yml) as a same-day fallback — this module only reads
-// them back.
+// Images are populated by app/lib/refresh-weather.ts, invoked daily by Vercel Cron (see
+// vercel.json) with GitHub Actions (.github/workflows/refresh-weather.yml) hitting the same
+// endpoint later as a same-day fallback — this module only reads them back.
 const BLOB_PREFIX = "weather/weatherstreet-"
 
 export type WeatherImage = { url: string; uploadedAt: number }
